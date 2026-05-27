@@ -41,9 +41,6 @@ public class VendingMachineApplication {
     @Bean
     CommandLineRunner run(PessoaService pService, EPIService eService, GerenciadorService gService, GerencInterfaceService gIService) {
         return args -> {
-
-
-
             Scanner scr = new Scanner(System.in);
             // pService.listaTodos().forEach(p -> System.out.println(p.toString()));
             // System.out.println(gService.encontrarPorQrCodeDireto("Crachas/3.jpg"));
@@ -61,17 +58,7 @@ public class VendingMachineApplication {
                 }
 
             }
-
-
             //gIService.verCamera();
-
-
-
         };
-
-
     }*/
-
-
-
 }
