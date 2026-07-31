@@ -1,10 +1,7 @@
 package com.vendingMachine.vendingMachine.entity;
 
-
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
+import java.util.List;
 
 @Entity
 @Table(name = "cliente")
@@ -18,21 +15,25 @@ public class Pessoa {
     private String nome;
     private String curso;
 
-    private Pessoa(){}
+    @OneToMany(mappedBy = "pessoa", cascade = CascadeType.ALL)
+    private List<EpiRetirado> epiRetirados;
 
-    public Pessoa(String qrcode, String cpf, String nome, String curso) {
-        this.qrCode = qrcode;
+
+    public Pessoa() {}
+
+    public Pessoa(String qrCode, String cpf, String nome, String curso) {
+        this.qrCode = qrCode;
         this.cpf = cpf;
         this.nome = nome;
         this.curso = curso;
     }
 
-    public String getQrcode() {
+    public String getQrCode() {
         return qrCode;
     }
 
-    public void setQrcode(String qrcode) {
-        this.qrCode = qrcode;
+    public void setQrCode(String qrCode) {
+        this.qrCode = qrCode;
     }
 
     public String getCpf() {
@@ -59,8 +60,16 @@ public class Pessoa {
         this.curso = curso;
     }
 
+    public List<EpiRetirado> getEpiRetirados() {
+        return epiRetirados;
+    }
+
+    public void setEpiRetirados(List<EpiRetirado> epiRetirados) {
+        this.epiRetirados = epiRetirados;
+    }
+
     @Override
-    public String toString(){
-        return "NOME: " + getNome() + " CÓDIGO: " + getQrcode() + " CURSO: " + getCurso() + " CPF: " + getCpf();
+    public String toString() {
+        return "NOME: " + getNome() + " CÓDIGO: " + getQrCode() + " CURSO: " + getCurso() + " CPF: " + getCpf();
     }
 }

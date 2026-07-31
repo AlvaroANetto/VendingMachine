@@ -38,15 +38,15 @@ public class GerenciadorService {
     }
 
     public Pessoa encontrarPorQrCodeString(String qrCode){
-        return pRepository.findByqrCode(qrCode);
+        return pRepository.findByQrCode(qrCode);
     }
 
     public Pessoa encontrarPorQrCodeDireto(String caminho){
-        return pRepository.findByqrCode(lerQrCodePorCaminho(caminho));
+        return pRepository.findByQrCode(lerQrCodePorCaminho(caminho));
     }
 
     public Pessoa encontrarPorQrCodeImagem(){
-        return pRepository.findByqrCode(lerQrCodePorImagem(pegarFoto()));
+        return pRepository.findByQrCode(lerQrCodePorImagem(pegarFoto()));
     }
 
     public String lerQrCodePorCaminho(String caminho) {
