@@ -24,6 +24,10 @@ public class EPIService {
         return epiRepository.findAll();
     }
 
+    public List<EPI> listarPorTipo(String tipo){
+        return epiRepository.listarPorTipo(tipo);
+    }
+
     public void deletarPorId(Long id) {
         epiRepository.deleteById(id);
         System.out.println("EPI com ID " + id + " deletada.");
