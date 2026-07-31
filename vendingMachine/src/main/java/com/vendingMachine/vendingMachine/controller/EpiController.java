@@ -33,8 +33,8 @@ public class EpiController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deletar(@PathVariable Long id) {
+    public ResponseEntity<?> deletar(@PathVariable Long id) {
         epiService.deletarPorId(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.status(204).body("Deletado");
     }
 }

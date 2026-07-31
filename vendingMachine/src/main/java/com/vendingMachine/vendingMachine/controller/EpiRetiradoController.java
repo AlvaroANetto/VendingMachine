@@ -21,7 +21,7 @@ public class EpiRetiradoController {
     private EpiRetiradoService epiRetiradoService;
 
 
-    // Exemplo de JSON no body: { "qrCode": "12345", "epiId": 1, "quantidade": 2 }
+    // Exemplo de JSON: { "qrCode": "12345", "epiId": 1, "quantidade": 2 }
     @PostMapping
     public ResponseEntity<EpiRetirado> registrarRetirada(@RequestBody RetiradaDTO dto) {
         EpiRetirado retirada = epiRetiradoService.registrarRetirada(
