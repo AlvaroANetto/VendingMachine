@@ -16,8 +16,8 @@ print("Extraindo vetor da foto da webcam...")
 embedding_atual = DeepFace.represent(
     img_path="foto_webcam.jpg", 
     model_name="Facenet512",
-    detector_backend="skip",
-    enforce_detection=False
+    detector_backend="mtcnn",
+    enforce_detection=True
 )[0]["embedding"]
 
 acesso_liberado = False
@@ -31,8 +31,8 @@ for arquivo in caminho_pasta.iterdir():
             embedding_cadastrado = DeepFace.represent(
                 img_path=str(arquivo), 
                 model_name="Facenet512",
-                detector_backend="skip",
-                enforce_detection=False
+                detector_backend="mtcnn",
+                enforce_detection=True
             )[0]["embedding"]
 
             # Compara os dois vetores numericamente
