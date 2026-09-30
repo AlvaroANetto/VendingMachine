@@ -3,6 +3,8 @@ from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, DateT
 from sqlalchemy.orm import declarative_base, sessionmaker, Session, relationship
 from datetime import datetime
 from deepface import DeepFace
+from typing import Optional
+
 import requests
 import shutil
 import os
@@ -10,7 +12,7 @@ import os
 # ==========================================
 # 1. CONFIGURAÇÃO DO BANCO DE DADOS (Substitui o JPA/Hibernate)
 # ==========================================
-SQLALCHEMY_DATABASE_URL = "mysql+pymysql://vending_api:654321@10.110.12.43:3306/vendingMachine"
+SQLALCHEMY_DATABASE_URL = "mysql+pymysql://vending_api:123456@10.110.12.47:3306/vendingMachine"
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -18,7 +20,8 @@ Base = declarative_base()
 # Entidades (Substitui as classes em com.vendingMachine.vendingMachine.entity)
 class Pessoa(Base):
     __tablename__ = "cliente"
-    qrCode = Column(String(100), primary_key=True, index=True)
+    # Adicionamos "qr_code" como o nome real da coluna no MySQL
+    qr_code = Column("qr_code", String(100), primary_key=True, index=True)
     cpf = Column(String(14))
     nome = Column(String(255))
     curso = Column(String(100))
@@ -31,7 +34,7 @@ class EPI(Base):
 class EpiRetirado(Base):
     __tablename__ = "epi_Retirado"
     id = Column(Integer, primary_key=True, index=True)
-    pessoa_id = Column(String(100), ForeignKey("cliente.qrCode"))
+    pessoa_id = Column(String(100), ForeignKey("cliente.qr_code"))
     epi_id = Column(Integer, ForeignKey("tbl_EPI.id"))
     quantidade = Column(Integer)
     dia_hora = Column(DateTime, default=datetime.utcnow)
@@ -42,7 +45,7 @@ Base.metadata.create_all(bind=engine)
 # 2. INICIALIZAÇÃO DA API
 # ==========================================
 app = FastAPI(title="Vending Machine API")
-ESP32_URL = "http://192.168.1.100/girar_motor" # Mude para o IP do seu ESP32
+ESP32_URL = "http://10.110.22.34/girar_motor" # Mude para o IP do seu ESP32
 
 # Dependência para pegar o banco de dados
 def get_db():
@@ -56,10 +59,18 @@ def get_db():
 # 3. ROTAS DE CADASTRO BÁSICO (CRUD)
 # ==========================================
 @app.post("/pessoa")
-def criar_pessoa(qrCode: str = Form(...), nome: str = Form(...), db: Session = Depends(get_db)):
-    nova_pessoa = Pessoa(qrCode=qrCode, nome=nome)
+def criar_pessoa(
+    qr_code: str = Form(...), 
+    nome: str = Form(...),
+    cpf: Optional[str] = Form(None),   # Permite receber o CPF
+    curso: Optional[str] = Form(None), # Permite receber o Curso
+    db: Session = Depends(get_db)
+):
+    # Agora passamos todos os atributos para a Entidade do banco
+    nova_pessoa = Pessoa(qr_code=qr_code, nome=nome, cpf=cpf, curso=curso)
     db.add(nova_pessoa)
     db.commit()
+    
     return {"mensagem": f"Pessoa {nome} cadastrada com sucesso!"}
 
 @app.post("/epi")
@@ -69,12 +80,43 @@ def criar_epi(tipo_epi: str = Form(...), db: Session = Depends(get_db)):
     db.commit()
     return {"mensagem": f"EPI {tipo_epi} cadastrado!"}
 
+    # ---------------------------------------------------------
+# Rota GET - Listar todas as pessoas cadastradas
+# ---------------------------------------------------------
+@app.get("/pessoa")
+def listar_pessoas(db: Session = Depends(get_db)):
+    # Busca todos os registros na tabela cliente (Pessoa)
+    pessoas = db.query(Pessoa).all()
+    return pessoas
+
+@app.get("/epi")
+def listar_epi(db: Session = Depends(get_db)):
+    epis = db.query(EPI).all()
+    return epis
+# ---------------------------------------------------------
+# Rota DELETE - Deletar uma pessoa pelo qrCode
+# ---------------------------------------------------------
+@app.delete("/pessoa/{qr_code}")
+def deletar_pessoa(qr_code: str, db: Session = Depends(get_db)):
+    # Busca a pessoa específica no banco de dados
+    pessoa = db.query(Pessoa).filter(Pessoa.qr_code == qr_code).first()
+    
+    # Se a pessoa não existir, retorna um erro 404 (Não Encontrado)
+    if not pessoa:
+        raise HTTPException(status_code=404, detail="Pessoa não encontrada no banco de dados.")
+    
+    # Se encontrar, deleta do banco e confirma (commit)
+    db.delete(pessoa)
+    db.commit()
+    
+    return {"mensagem": f"Pessoa com qrCode '{qr_code}' deletada com sucesso!"}
+
 # ==========================================
 # 4. A ROTA PRINCIPAL: RECONHECIMENTO + RETIRADA + ESP32
 # ==========================================
 @app.post("/vendingMachine/retirar")
 async def processar_retirada(
-    qrCode: str = Form(...),
+    qr_code: str = Form(...),
     epiId: int = Form(...),
     quantidade: int = Form(...),
     motor: int = Form(...), # Qual motor a máquina deve girar (1, 2 ou 3)
@@ -83,12 +125,12 @@ async def processar_retirada(
     db: Session = Depends(get_db)
 ):
     # 1. Verifica se a pessoa existe no banco
-    pessoa = db.query(Pessoa).filter(Pessoa.qrCode == qrCode).first()
+    pessoa = db.query(Pessoa).filter(Pessoa.qr_code == qr_code).first()
     if not pessoa:
         raise HTTPException(status_code=404, detail="QR Code não encontrado no sistema.")
 
-    caminho_temp = f"temp_{qrCode}.jpg"
-    caminho_oficial = f"rostosCadastrados/{qrCode}.jpg"
+    caminho_temp = f"temp_{qr_code}.jpg"
+    caminho_oficial = f"rostosCadastrados/{qr_code}.jpg"
 
     if not os.path.exists(caminho_oficial):
         raise HTTPException(status_code=404, detail="Foto de cadastro não encontrada.")
@@ -110,7 +152,7 @@ async def processar_retirada(
 
         if resultado["verified"]:
             # 3. Rosto confirmado! Salva a retirada no banco de dados
-            nova_retirada = EpiRetirado(pessoa_id=qrCode, epi_id=epiId, quantidade=quantidade)
+            nova_retirada = EpiRetirado(pessoa_id=qr_code, epi_id=epiId, quantidade=quantidade)
             db.add(nova_retirada)
             db.commit()
 
