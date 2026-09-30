@@ -8,5 +8,4 @@ py -3.12 -m pip install tf-keras
 py -3.12 -m pip install pymysql
 py -3.12 -m pip install python-multipart
 py -3.12 -m pip install uvicorn
-code . 
 py -3.12 ApiReconhecimento.py
