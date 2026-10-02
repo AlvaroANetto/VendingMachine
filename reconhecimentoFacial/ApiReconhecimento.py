@@ -4,15 +4,20 @@ from sqlalchemy.orm import declarative_base, sessionmaker, Session, relationship
 from datetime import datetime
 from deepface import DeepFace
 from typing import Optional
+import socket
 
 import requests
 import shutil
 import os
 
+hostname = socket.gethostname()
+
+ipMaquina = socket.gethostbyname(hostname)
+
 # ==========================================
 # 1. CONFIGURAÇÃO DO BANCO DE DADOS (Substitui o JPA/Hibernate)
 # ==========================================
-SQLALCHEMY_DATABASE_URL = "mysql+pymysql://vending_api:123456@10.110.12.47:3306/vendingMachine"
+SQLALCHEMY_DATABASE_URL = "mysql+pymysql://vending_api:123456@" + ipMaquina + ":3306/vendingMachine"
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -39,7 +44,7 @@ class EpiRetirado(Base):
     quantidade = Column(Integer)
     dia_hora = Column(DateTime, default=datetime.utcnow)
 
-Base.metadata.create_all(bind=engine)
+#Base.metadata.create_all(bind=engine)
 
 # ==========================================
 # 2. INICIALIZAÇÃO DA API
