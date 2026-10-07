@@ -4,7 +4,9 @@ from sqlalchemy.orm import declarative_base, sessionmaker, Session, relationship
 from datetime import datetime
 from deepface import DeepFace
 from typing import Optional
+import pymysql
 import socket
+from fastapi.middleware.cors import CORSMiddleware
 
 import requests
 import shutil
@@ -13,6 +15,16 @@ import os
 hostname = socket.gethostname()
 
 ipMaquina = socket.gethostbyname(hostname)
+
+conexao_temp = pymysql.connect(host=ipMaquina, user="vending_api", password="123456")
+with conexao_temp.cursor() as cursor:
+    cursor.execute("CREATE DATABASE IF NOT EXISTS vendingMachine;")
+conexao_temp.close()
+# ================================================
+SQLALCHEMY_DATABASE_URL = "mysql+pymysql://vending_api:123456@" + ipMaquina + ":3306/vendingMachine"
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
 
 # ==========================================
 # 1. CONFIGURAÇÃO DO BANCO DE DADOS (Substitui o JPA/Hibernate)
@@ -44,13 +56,25 @@ class EpiRetirado(Base):
     quantidade = Column(Integer)
     dia_hora = Column(DateTime, default=datetime.utcnow)
 
-#Base.metadata.create_all(bind=engine)
+Base.metadata.create_all(bind=engine)
 
 # ==========================================
 # 2. INICIALIZAÇÃO DA API
 # ==========================================
 app = FastAPI(title="Vending Machine API")
-ESP32_URL = "http://10.110.22.34/girar_motor" # Mude para o IP do seu ESP32
+
+
+# ==========================================
+# CONFIGURAÇÃO DE CORS (Libera requisições do Front-end)
+# ==========================================
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],        # Permite requisições de qualquer IP/origem
+    allow_credentials=True,
+    allow_methods=["*"],        # Permite GET, POST, DELETE, OPTIONS, etc.
+    allow_headers=["*"],        # Permite todos os cabeçalhos (headers)
+)
+ESP32_URL = "http://10.110.22.7/girar_motor" # Mude para o IP do seu ESP32
 
 # Dependência para pegar o banco de dados
 def get_db():
