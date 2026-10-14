@@ -1,41 +1,25 @@
 import cv2
+import numpy as np
 from pathlib import Path
 
 # Garante que a pasta de cadastro exista
 pasta_cadastro = Path("rostosCadastrados")
 pasta_cadastro.mkdir(exist_ok=True)
 
-print("=== TIPO DE CAPTURA ===")
-print("1 - Foto para CADASTRO (Salva na pasta 'rostosCadastrados')")
-print("2 - Foto da WEBCAM (Salva na raiz como 'foto_webcam.jpg' para validação)")
-opcao = input("Escolha a opção (1 ou 2): ").strip()
-
-if opcao == "1":
-    nome_pessoa = input("Digite o nome ou ID do crachá da pessoa: ").strip()
-    
-    # Se não digitar nada, gera um número automático para o nome
-    if not nome_pessoa:
-        qtd_arquivos = len(list(pasta_cadastro.glob("*.jpg")))
-        caminho_salvar = pasta_cadastro / f"pessoa_{qtd_arquivos + 1}.jpg"
-    else:
-        caminho_salvar = pasta_cadastro / f"{nome_pessoa}.jpg"
-        
-    titulo_janela = f"Cadastro: {caminho_salvar.name}"
-
-elif opcao == "2":
-    caminho_salvar = Path("foto_webcam.jpg")
-    titulo_janela = "Foto da Webcam (Validacao)"
-
-else:
-    print("Opção inválida! Encerrando...")
-    exit()
+# Inicializa o detector nativo de QR Code do OpenCV
+qr_detector = cv2.QRCodeDetector()
 
 # Inicializa a câmera
 camera = cv2.VideoCapture(0)
 
-print("\nInstruções:")
-print(" - Pressione 'ESPAÇO' ou 's' para salvar a foto.")
-print(" - Pressione 'ESC' ou 'q' para cancelar.\n")
+# Variável de sessão para guardar o último QR Code detectado
+qr_code_lido = ""
+
+print("=== CADASTRO DE ROSTO VIA QR CODE ===")
+print("1. Aproxime o QR Code do crachá da câmera.")
+print("2. Quando o indicador VERDE aparecer, alinhe o rosto.")
+print("3. Pressione 'ESPAÇO' ou 's' para salvar a foto.")
+print("4. Pressione 'ESC' ou 'q' para cancelar.\n")
 
 while True:
     ret, frame = camera.read()
@@ -43,16 +27,74 @@ while True:
         print("Erro ao acessar a câmera.")
         break
 
-    # Mostra a imagem com o título correspondente à escolha
-    cv2.imshow(titulo_janela, frame)
+    # Tenta detectar e decodificar o QR Code no frame atual
+    dados, bbox, _ = qr_detector.detectAndDecode(frame)
+
+    # Cria uma cópia do frame apenas para desenhar as marcações visuais
+    frame_visual = frame.copy()
+
+    # Se um QR Code for detectado no frame
+    if bbox is not None and dados:
+        qr_code_lido = dados.strip()
+        
+        # Converte os pontos da borda para inteiros
+        pts = bbox.astype(int)
+        
+        # Desenha um retângulo verde em volta do QR Code
+        cv2.polylines(frame_visual, [pts], isClosed=True, color=(0, 255, 0), thickness=3)
+        
+        # Mostra o texto do QR Code no topo da janela
+        cv2.putText(
+            frame_visual, 
+            f"QR Detectado: {qr_code_lido}", 
+            (10, 35), 
+            cv2.FONT_HERSHEY_SIMPLEX, 
+            0.7, 
+            (0, 255, 0), 
+            2
+        )
+    else:
+        # Se nenhum QR Code estiver visível agora, mas já foi lido um na sessão
+        if qr_code_lido:
+            cv2.putText(
+                frame_visual, 
+                f"Pronto para salvar: {qr_code_lido}", 
+                (10, 35), 
+                cv2.FONT_HERSHEY_SIMPLEX, 
+                0.7, 
+                (0, 255, 255), 
+                2
+            )
+        else:
+            cv2.putText(
+                frame_visual, 
+                "Aproxime um QR Code da camera...", 
+                (10, 35), 
+                cv2.FONT_HERSHEY_SIMPLEX, 
+                0.6, 
+                (0, 0, 255), 
+                2
+            )
+
+    # Exibe o preview com as informações na tela
+    cv2.imshow("Cadastro - Pressione ESPACO para Salvar", frame_visual)
 
     key = cv2.waitKey(1) & 0xFF
 
     # Tecla ESPAÇO (32) ou 's' para salvar
     if key == 32 or key == ord('s'):
-        cv2.imwrite(str(caminho_salvar), frame, [cv2.IMWRITE_JPEG_QUALITY, 95])
-        print(f"✅ Foto salva com sucesso em: {caminho_salvar}")
-        break
+        if qr_code_lido:
+            caminho_salvar = pasta_cadastro / f"{qr_code_lido}.jpg"
+            
+            # IMPORTANTE: Salva a imagem LIMPA (frame), sem o retângulo verde/texto
+            cv2.imwrite(str(caminho_salvar), frame, [cv2.IMWRITE_JPEG_QUALITY, 95])
+            
+            print(f"✅ Foto salva com sucesso!")
+            print(f"   Nome do arquivo: {caminho_salvar.name}")
+            print(f"   Caminho: {caminho_salvar.absolute()}")
+            break
+        else:
+            print("⚠️  Atenção: Nenhum QR Code foi detectado ainda. Aproxime o QR Code antes de apertar Espaço.")
 
     # Tecla ESC (27) ou 'q' para cancelar
     elif key == 27 or key == ord('q'):
